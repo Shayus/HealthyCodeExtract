@@ -9,5 +9,6 @@ python main.py
 
 自带可视化界面，能够批量读取文件夹内所有截图，然后将数据提取到excel中。
 
+requirement.txt 为 Ubuntu2004 版本中的包需求
 
-后续会上传exe文件
+exe文件比较大，如果需要可以联系我：15988815793@163.com
