@@ -1,26 +1,20 @@
+# -*- coding: utf-8 -*-
 import os
 import re
 import tkinter.messagebox
+import tkinter.ttk
 from datetime import datetime
 from tkinter import *
 from tkinter import filedialog
-import cv2
 
+import cv2
 import numpy as np
 import thulac
 import xlsxwriter
-from PIL import Image
 from paddleocr import PaddleOCR
 
-ocr = PaddleOCR(use_angle_cls=True, lang='ch')
-thu = thulac.thulac(seg_only=False)
-punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~、!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~“”？，！【】（）、。：；’‘……￥·"""
-dicts = {i: '' for i in punctuation}
-punc_table = str.maketrans(dicts)
-root = Tk()
-MyFrm(root)
 
-def Ocr_baidu(str):
+def Ocr_baidu(ocr, str):
     result = ocr.ocr(str, cls=True)
     data = ''
     for item in result:
@@ -42,9 +36,12 @@ class MyFrm(Frame):
         self.root.deiconify()
 
 
+root = Tk()
+MyFrm(root)
+
+
 def sel_savepath():
-    # 选择文件存储路径
-    save_path = filedialog.askdirectory(title='选择文件存放的位置！', initialdir=r'D:')
+    save_path = filedialog.askdirectory(title='选择文件存放的位置！', initialdir=r'C:')
     lable4.configure(text=save_path)  # 重新设置标签文本
 
 
@@ -77,12 +74,12 @@ def get_img_file(file_name):
     for parent, dirnames, filenames in os.walk(file_name):
         for filename in filenames:
             if filename.lower().endswith(('.bmp', '.png', '.jpg', '.jpeg')):
-                imagelist.append(os.path.join(parent, filename))
+                path = os.path.join(parent, filename).replace("\\", "/")
+                imagelist.append(path)
         return imagelist
 
 
 def getTimeDis(dtime):
-    # assert dtime >= 0
     day, hour, min = 24 * 60 * 60, 60 * 60, 60
     days, hours, mins, secs = 0, 0, 0, 0
     if dtime >= day:
@@ -96,7 +93,9 @@ def getTimeDis(dtime):
 
 
 def get_hesuanresult(path):
-    img = np.array(Image.open(path))
+    with open(path, 'rb') as f:
+        np_arr = np.frombuffer(f.read(), dtype=np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     g = np.zeros((img.shape[0], img.shape[1]), dtype=img.dtype)
     r = np.zeros((img.shape[0], img.shape[1]), dtype=img.dtype)
     g[:, :] = img[:, :, 1]  # 复制 g 通道的数据
@@ -109,10 +108,15 @@ def get_hesuanresult(path):
         return '阳性'
 
 
+def sel_imgpath():
+    dir_path = filedialog.askdirectory(title='选择批量截图所在文件夹！', initialdir=r'C:')
+    lable9.configure(text=dir_path)
+
+
 def process():
-    dir_path = filedialog.askdirectory(title='选择批量截图所在文件夹！', initialdir=r'D:')
     today, ti = getTime()
     saveFile = lable4.cget("text").strip() + '/核酸检测结果统计' + ti.replace(':', '') + '.xlsx'
+    dir_path = lable9.cget("text").strip()
     workbook = xlsxwriter.Workbook(saveFile)
     # 创建工作表
     worksheet = workbook.add_worksheet()
@@ -128,12 +132,18 @@ def process():
     worksheet.write(0, 4, "统计时间")
     worksheet.write(0, 5, "时间差")
     worksheet.write(0, 6, "文件路径")
+
+    ocr = PaddleOCR(use_angle_cls=True, lang='ch')
+    thu = thulac.thulac(seg_only=False)
+    punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~、!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~“”？，！【】（）、。：；’‘……￥·"""
+    dicts = {i: '' for i in punctuation}
+    punc_table = str.maketrans(dicts)
+
     # 定义一个红色+黑体的格式.
     bold = workbook.add_format({'bold': 1, "color": "red"})
     files = get_img_file(dir_path)
     for i in range(len(files)):
-        result, data = Ocr_baidu(files[i])
-        # print(data)
+        result, data = Ocr_baidu(ocr, files[i])
         today, ti = getTime()
         re_name = ""
         re_hesuanresult = ""
@@ -148,19 +158,13 @@ def process():
                 temp = re.search('\n(.*)\n若', data)
                 re_name = temp.group(1)
         re_hesuanresult = get_hesuanresult(files[i])
-        # if re.search('阳性', data):
-        #     re_hesuanresult = '阳性'
-        # else:
-        #     re_hesuanresult = '阴性'
-        # if re.search('为(.*)\n', data):
-        #     re_hesuanresult = re.search('为(.*)\n', data).group(1)
         time = get_strtime(data)  # 文本中的时间
         time = time.ljust(14, '0')
         try:
             ttime = datetime.strptime(time, '%Y%m%d%H%M%S')
             time = datetime.strftime(ttime, '%Y-%m-%d %H:%M:%S')
         except ValueError:
-            ttime = datetime.strftime('200001010000', '%Y%m%d%H%M%S')
+            ttime = datetime.strftime('202001010000', '%Y%m%d%H%M%S')
             time = datetime.strftime(ttime, '%Y-%m-%d %H:%M:%S')
 
         if re.search('机构(.*)\n', data):
@@ -175,26 +179,48 @@ def process():
         today, ti = getTime()
         worksheet.write(i + 1, 4, ti)
         worksheet.write(i + 1, 5, getTimeDis((today - ttime).total_seconds()))
-        # worksheet.write_formula(i + 1, 5, '=E' + str(i + 2) + '-C' + str(i + 2))
-        worksheet.write(i + 1, 6, files[i])
-
+        worksheet.write(i + 1, 6, files[i].split("/")[-1])
+        lable7.configure(text='完成' + str(i+1) + '/' + str(len(files)))
+        root.update()
     workbook.close()
     tkinter.messagebox.askokcancel('提示', '统计完成！\n' + saveFile)
+    lable7.configure(text='')
 
 
-if __name__ == '__main__':
-    lable1 = Label(root, text='请选择文件夹', font=("黑体", 18))
-    lable1.place(relx=0.15, rely=0.15)
-    btn1 = Button(root, text='选择', font=("黑体", 18), command=process)
-    btn1.place(relx=0.55, rely=0.15, relwidth=0.3, relheight=0.1)
+lable1 = Label(root, text='请选择文件夹', font=("黑体", 18))
+lable1.place(relx=0.15, rely=0.15)
 
-    lable2 = Label(root, text='设置保存路径', font=("黑体", 18))
-    lable2.place(relx=0.15, rely=0.4)
-    btn2 = Button(root, text='选择', font=("黑体", 18), command=sel_savepath)
-    btn2.place(relx=0.55, rely=0.4, relwidth=0.3, relheight=0.1)
+btn1 = Button(root, text='选择', font=("黑体", 18), command=sel_imgpath)
+btn1.place(relx=0.55, rely=0.15, relwidth=0.3, relheight=0.1)
 
-    lable3 = Label(root, text='保存路径:', font=("黑体", 12))
-    lable3.place(relx=0.1, rely=0.7)
-    lable4 = Label(root, text='D:', font=("黑体", 12))
-    lable4.place(relx=0.25, rely=0.7)
-    root.mainloop()
+lable2 = Label(root, text='设置保存路径', font=("黑体", 18))
+lable2.place(relx=0.15, rely=0.3)
+
+btn2 = Button(root, text='选择', font=("黑体", 18), command=sel_savepath)
+btn2.place(relx=0.55, rely=0.3, relwidth=0.3, relheight=0.1)
+
+lable3 = Label(root, text='保存路径:', font=("黑体", 12))
+lable3.place(relx=0.1, rely=0.6)
+
+lable8 = Label(root, text='图片路径:', font=("黑体", 12))
+lable8.place(relx=0.1, rely=0.7)
+
+lable9 = Label(root, text='C:', font=("黑体", 12))
+lable9.place(relx=0.25, rely=0.7)
+
+lable4 = Label(root, text='C:', font=("黑体", 12))
+lable4.place(relx=0.25, rely=0.6)
+
+lable5 = Label(root, text='信息学院 学工办', font=("黑体", 10))
+lable5.place(relx=0.75, rely=0.8)
+
+lable6 = Label(root, text='技术支持：10-511', font=("黑体", 10))
+lable6.place(relx=0.75, rely=0.9)
+
+lable7 = Label(root, text='', font=("黑体", 12))
+lable7.place(relx=0.1, rely=0.9)
+
+btn3 = Button(root, text='开始', font=("黑体", 18), command=process)
+btn3.place(relx=0.55, rely=0.45, relwidth=0.3, relheight=0.1)
+
+root.mainloop()
