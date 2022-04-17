@@ -11,4 +11,4 @@ python main.py
 
 requirement.txt 为 Ubuntu2004 版本中的包需求
 
-exe文件比较大，如果需要可以联系我：15988815793@163.com
+exe文件比较大，如果需要可以联系我：geeekhao@foxmail.com
