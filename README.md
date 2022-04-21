@@ -18,3 +18,5 @@ exe生成文件较大，需要可以直接找我 geeekhao@foxmail.com
 第一次使用程序时，点击config.bat ， 会在C盘配置python库以及paddleocr模型，大小在1.5G
 
 之后直接点击main.exe即可执行。
+
+目前有的地方信息提取较为暴力，欢迎大佬指正！
