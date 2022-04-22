@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-import re
 import tkinter.messagebox
 import tkinter.ttk
 from datetime import datetime
@@ -12,6 +11,7 @@ import numpy as np
 import thulac
 import xlsxwriter
 from paddleocr import PaddleOCR
+import re
 
 
 def Ocr_baidu(ocr, str):
@@ -180,7 +180,7 @@ def process():
         worksheet.write(i + 1, 4, ti)
         worksheet.write(i + 1, 5, getTimeDis((today - ttime).total_seconds()))
         worksheet.write(i + 1, 6, files[i].split("/")[-1])
-        lable7.configure(text='完成' + str(i+1) + '/' + str(len(files)))
+        lable7.configure(text='完成' + str(i + 1) + '/' + str(len(files)))
         root.update()
     workbook.close()
     tkinter.messagebox.askokcancel('提示', '统计完成！\n' + saveFile)
